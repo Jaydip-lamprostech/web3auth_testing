@@ -11,6 +11,7 @@ const web3auth = new Web3Auth({
     chainId: "0x5", // Please use 0x5 for Goerli Testnet
   },
   theme: "dark",
+  web3AuthNetwork: "cyan",
 });
 
 function App() {
