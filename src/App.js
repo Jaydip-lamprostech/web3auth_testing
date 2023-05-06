@@ -1,33 +1,40 @@
 import "./App.css";
 
 import { Web3Auth } from "@web3auth/modal";
+import { ethers } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 
 //Initialize within your constructor
 const web3auth = new Web3Auth({
   clientId: `BNVHKQQNqwNQSTBomstQ29-Hxh-ri77E5OreTGJ6lLyHr0vj7cnbr6sZTxOXyjF_8nlYltULDWY-f2Cx70PbMUM`, // Get your Client ID from Web3Auth Dashboard
-//   chainConfig: {
-//     chainNamespace: "eip155",
-//     chainId: "0x5", // Please use 0x5 for Goerli Testnet
-//   },
+  //   chainConfig: {
+  //     chainNamespace: "eip155",
+  //     chainId: "0x5", // Please use 0x5 for Goerli Testnet
+  //   },
   chainConfig: {
     chainNamespace: "eip155",
-    chainId: "0x1", // EVM chain's Chain ID
-    rpcTarget: "https://rpc.ankr.com/eth", // EVM chain's RPC endpoint
+    chainId: "0x13881", // hex of 80001, polygon testnet
+    rpcTarget: "https://rpc.ankr.com/polygon_mumbai",
     // Avoid using public rpcTarget in production.
-    // Use services like Infura, Quicknode, Alchemy, Ankr etc.
-    displayName: "Ethereum Mainnet", // EVM chain's Name
-    blockExplorer: "https://etherscan.io/", // EVM chain's Blockexplorer
-    ticker: "ETH", // EVM chain's Ticker
-    tickerName: "Ethereum", // EVM chain's Ticker Name
+    // Use services like Infura, Quicknode etc
+    displayName: "Polygon Mumbai Testnet",
+    blockExplorer: "https://mumbai.polygonscan.com/",
+    ticker: "MATIC",
+    tickerName: "Matic",
   },
   theme: "dark",
   web3AuthNetwork: "cyan",
 });
 
 function App() {
-  const [userData, setuserData] = useState({ name: "", profileImage: "" });
+  const [userData, setuserData] = useState({
+    name: "",
+    profileImage: "",
+    address: "",
+    balance: "",
+  });
   const [loggedIn, setLoggedIn] = useState(false);
+  const [address, setAddress] = useState("");
 
   // web3auth code
 
@@ -42,9 +49,25 @@ function App() {
     try {
       const login = await web3auth.connect();
       if (login) {
+        const provider = new ethers.providers.Web3Provider(login);
+        const signer = provider.getSigner();
+
+        // Get user's Ethereum public address
+        const address = await signer.getAddress();
+        setAddress(address);
+        console.log(address);
+        const balance = ethers.utils.formatEther(
+          await provider.getBalance(address) // Balance is in wei
+        );
         const data = await web3auth.getUserInfo();
         console.log(data);
-        setuserData(data);
+        setuserData({
+          name: data.name,
+          profileImage: data.profileImage,
+          email: data.email,
+          address: address,
+          balance: balance / Math.pow(10, 18).toFixed(4),
+        });
         setLoggedIn(true);
       }
       console.log(login);
@@ -76,6 +99,7 @@ function App() {
       console.log(err);
     }
   };
+  // get user address and balance
 
   const logout = async () => {
     try {
@@ -136,6 +160,14 @@ function App() {
                     />
                   </td>
                 </tr>
+                <tr>
+                  <td>Address</td>
+                  <td>{userData.address}</td>
+                </tr>
+                <tr>
+                  <td>Balance</td>
+                  <td>{userData.balance}</td>
+                </tr>
               </>
             ) : (
               <>
@@ -149,6 +181,14 @@ function App() {
                 </tr>
                 <tr>
                   <td>Profile Picture</td>
+                  <td>-</td>
+                </tr>
+                <tr>
+                  <td>Address</td>
+                  <td>-</td>
+                </tr>
+                <tr>
+                  <td>Balance</td>
                   <td>-</td>
                 </tr>
               </>
