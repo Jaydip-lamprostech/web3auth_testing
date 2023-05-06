@@ -6,9 +6,20 @@ import { useCallback, useEffect, useState } from "react";
 //Initialize within your constructor
 const web3auth = new Web3Auth({
   clientId: `${process.env.REACT_WEB3AUTH_CLIENTID}`, // Get your Client ID from Web3Auth Dashboard
+//   chainConfig: {
+//     chainNamespace: "eip155",
+//     chainId: "0x5", // Please use 0x5 for Goerli Testnet
+//   },
   chainConfig: {
     chainNamespace: "eip155",
-    chainId: "0x5", // Please use 0x5 for Goerli Testnet
+    chainId: "0x1", // EVM chain's Chain ID
+    rpcTarget: "https://rpc.ankr.com/eth", // EVM chain's RPC endpoint
+    // Avoid using public rpcTarget in production.
+    // Use services like Infura, Quicknode, Alchemy, Ankr etc.
+    displayName: "Ethereum Mainnet", // EVM chain's Name
+    blockExplorer: "https://etherscan.io/", // EVM chain's Blockexplorer
+    ticker: "ETH", // EVM chain's Ticker
+    tickerName: "Ethereum", // EVM chain's Ticker Name
   },
   theme: "dark",
   web3AuthNetwork: "cyan",
