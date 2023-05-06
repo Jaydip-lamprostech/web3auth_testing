@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 //Initialize within your constructor
 const web3auth = new Web3Auth({
-  clientId: `${process.env.REACT_WEB3AUTH_CLIENTID}`, // Get your Client ID from Web3Auth Dashboard
+  clientId: `BNVHKQQNqwNQSTBomstQ29-Hxh-ri77E5OreTGJ6lLyHr0vj7cnbr6sZTxOXyjF_8nlYltULDWY-f2Cx70PbMUM`, // Get your Client ID from Web3Auth Dashboard
 //   chainConfig: {
 //     chainNamespace: "eip155",
 //     chainId: "0x5", // Please use 0x5 for Goerli Testnet
