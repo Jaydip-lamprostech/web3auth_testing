@@ -25,3 +25,8 @@ img.profile {
   border-radius: 99999px;
   outline: 3px solid orangered;
 }
+.msg {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
