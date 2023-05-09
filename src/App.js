@@ -410,9 +410,9 @@ function App() {
           {/* <button className="logout" onClick={sendFunds}>
             send Funds
           </button> */}
-          <button className="logout" onClick={setProvider}>
+          {/* <button className="logout" onClick={setProvider}>
             setProvider
-          </button>
+          </button> */}
         </div>
         <div className="msg">
           <input
