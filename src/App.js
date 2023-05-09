@@ -38,10 +38,12 @@ function App() {
     responseMsg: "",
     contractBalance: "",
     sendIntoContractAmount: "",
+    getFromContractAmount: "",
   });
   const [textChange, setTextChange] = useState({
     sendMsgText: "Send Msg",
     sendIntoContract: "Send Into Contract",
+    getFromContract: "Get From Contract",
   });
   const [loggedIn, setLoggedIn] = useState(false);
   const [loginInstance, setLoginInstance] = useState();
@@ -289,7 +291,60 @@ function App() {
       console.log(err);
     }
   };
+  const getFromContract = async () => {
+    setTextChange({ ...textChange, getFromContract: "waiting..." });
+    try {
+      const web3 = new Web3(loginInstance);
+      // const contract = new web3.eth.Contract(contractABI, contractAddress);
+      const privateKey = await web3auth.provider.request({
+        method: "eth_private_key",
+      });
+      const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
+        config: {
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x13881", // hex of 80001, polygon testnet
+            rpcTarget: "https://rpc-mumbai.maticvigil.com/",
+            displayName: "Polygon Mumbai Testnet",
+            blockExplorer: "https://mumbai.polygonscan.com/",
+            ticker: "MATIC",
+            tickerName: "Matic",
+          },
+        },
+      });
 
+      await ethereumPrivateKeyProvider.setupProvider(privateKey);
+      console.log(ethereumPrivateKeyProvider.provider);
+      const provider = new ethers.providers.Web3Provider(
+        ethereumPrivateKeyProvider.provider
+      );
+      const signer = provider.getSigner();
+      const amount = web3.utils.toWei(data.getFromContractAmount.toString());
+      console.log(amount);
+      // Send transaction to smart contract to update message
+      // const amt = await contract.methods
+      //   .getFromContract(parseInt(amount))
+      //   .call();
+      const contract = new ethers.Contract(
+        contractAddress,
+        contractABI,
+        signer
+      );
+      console.log(contract);
+      const tx = await contract.getFromContract(parseInt(amount));
+      console.log(tx);
+      setData({
+        ...data,
+        getFromContractAmount: "",
+      });
+      setTextChange({ ...textChange, getFromContract: "Received" });
+      setTimeout(() => {
+        setTextChange({ ...textChange, getFromContract: "Get From Contract" });
+      }, 2000);
+    } catch (err) {
+      console.log(err);
+    }
+  };
   const sendIntoContract = async () => {
     setTextChange({ ...textChange, sendIntoContract: "Sending..." });
     try {
@@ -448,6 +503,19 @@ function App() {
           />
           <button onClick={sendIntoContract}>
             {textChange.sendIntoContract}
+          </button>
+        </div>
+        <div className="msg">
+          <input
+            type="text"
+            placeholder="Enter amount in MATIC..."
+            value={data.getFromContractAmount ? data.getFromContractAmount : ""}
+            onChange={(e) =>
+              setData({ ...data, getFromContractAmount: e.target.value })
+            }
+          />
+          <button onClick={getFromContract}>
+            {textChange.getFromContract}
           </button>
         </div>
         <table className="user-info-table">
