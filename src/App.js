@@ -3,6 +3,7 @@ import { SafeEventEmitterProvider } from "@web3auth/base";
 import { Web3Auth } from "@web3auth/modal";
 import { ethers } from "ethers";
 import { useCallback, useEffect, useState } from "react";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import Web3 from "web3";
 import contractABI from "./artifacts/contract.json";
 const contractAddress = "0x61De71734C89C9a359028962f6834A2ae099293e";
@@ -32,10 +33,19 @@ function App() {
     address: "",
     balance: "",
   });
-  const [msg, setMsg] = useState({ inputMsg: "", responseMsg: "" });
-  const [sendMsgText, setSendMsgText] = useState("Send Msg");
+  const [data, setData] = useState({
+    inputMsg: "",
+    responseMsg: "",
+    contractBalance: "",
+    sendIntoContractAmount: "",
+  });
+  const [textChange, setTextChange] = useState({
+    sendMsgText: "Send Msg",
+    sendIntoContract: "Send Into Contract",
+  });
   const [loggedIn, setLoggedIn] = useState(false);
   const [loginInstance, setLoginInstance] = useState();
+  const [providerState, setProviderState] = useState();
   const [address, setAddress] = useState("");
 
   // web3auth code
@@ -64,6 +74,7 @@ function App() {
         const balance = ethers.utils.formatEther(
           await provider.getBalance(address) // Balance is in wei
         );
+        console.log(balance);
         const data = await web3auth.getUserInfo();
         console.log(data);
         setUserData({
@@ -71,7 +82,7 @@ function App() {
           profileImage: data.profileImage,
           email: data.email,
           address: address,
-          balance: balance / Math.pow(10, 18).toFixed(4),
+          balance: balance,
         });
         setLoggedIn(true);
       }
@@ -84,7 +95,7 @@ function App() {
 
   const updateMsg = async () => {
     try {
-      setSendMsgText("Sending...");
+      setTextChange({ ...textChange, sendMsgText: "Sending..." });
       // const login = await web3auth.connect();
       // const provider = new ethers.providers.Web3Provider(loginInstance);
       // console.log(provider);
@@ -99,7 +110,7 @@ function App() {
       const contract = new web3.eth.Contract(contractABI, contractAddress);
       const fromAddress = (await web3.eth.getAccounts())[0];
       const response = await contract.methods
-        .sayHello(msg.inputMsg)
+        .sayHello(data.inputMsg)
         .send(
           {
             from: fromAddress,
@@ -108,10 +119,10 @@ function App() {
             if (transactionHash) {
               console.log(transactionHash);
 
-              setSendMsgText("Sent");
+              setTextChange({ ...textChange, sendMsgText: "Sent" });
               setTimeout(() => {
-                setSendMsgText("Send Msg");
-                setMsg({ inputMsg: "", responseMsg: "" });
+                setTextChange({ ...textChange, sendMsgText: "Send Msg" });
+                setData({ inputMsg: "", responseMsg: "" });
               }, 2000);
               // setApproveCase(3);
             } else {
@@ -159,7 +170,7 @@ function App() {
       // Send transaction to smart contract to update message
       const message = await contract.methods.getHello().call();
       // const data = await contract.getHello();
-      setMsg({ ...msg, responseMsg: message });
+      setData({ ...data, responseMsg: message });
       console.log(message);
     } catch (err) {
       console.log(err);
@@ -171,25 +182,29 @@ function App() {
       const login = web3auth.connect();
       console.log(web3auth.provider);
       // const provider = web3auth.provider;
-      const provider = new ethers.providers.Web3Provider(web3auth.provider);
-      const web3 = new Web3(loginInstance);
+      // const provider = new ethers.providers.Web3Provider(loginInstance);
+      const web3 = new Web3(web3auth.provider);
       // console.log(web3);
-      const signer = provider.getSigner(login.address);
-      console.log(signer);
+      // const signer = provider.getSigner(login);
+      // console.log(signer);
       const destination = "0x408402F30618a6985c56cF9608E04CEA12CddC37";
-      const amount = ethers.utils.parseEther("0.01858");
+      const amount = ethers.utils.parseEther("0");
+      console.log(amount);
       const fromAddress = (await web3.eth.getAccounts())[0];
       // console.log(fromAddress);
       // Send transaction to smart contract to update message
-      const tx = await signer.sendTransaction({
+      // const tx = await signer.sendTransaction({
+      //   from: "0xB3049f0b94a47854385DB5Ed269789849b4Aa9A2",
+      //   to: destination,
+      //   value: amount,
+      // });
+      const tx = await web3.eth.sendTransaction({
         from: fromAddress,
-        to: fromAddress,
+        to: destination,
         value: amount,
-        maxPriorityFeePerGas: "5000000000", // Max priority fee per gas
-        maxFeePerGas: "6000000000000", // Max fee per gas
       });
-      const receipt = await tx.wait();
-      console.log(receipt);
+      // const receipt = await tx.wait();
+      console.log(tx);
     } catch (err) {
       console.log(err);
     }
@@ -230,7 +245,35 @@ function App() {
     }
   };
 
+  const setProvider = async () => {
+    const privateKey = await web3auth.provider.request({
+      method: "eth_private_key",
+    });
+    console.log(privateKey);
+    const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
+      config: {
+        chainConfig: {
+          chainNamespace: "eip155",
+          chainId: "0x13881", // hex of 80001, polygon testnet
+          rpcTarget: "https://rpc-mumbai.maticvigil.com/",
+          displayName: "Polygon Mumbai Testnet",
+          blockExplorer: "https://mumbai.polygonscan.com/",
+          ticker: "MATIC",
+          tickerName: "Matic",
+        },
+      },
+    });
+
+    await ethereumPrivateKeyProvider.setupProvider(privateKey);
+    console.log(ethereumPrivateKeyProvider.provider);
+    setProviderState(ethereumPrivateKeyProvider.provider);
+  };
+
   const getContractBalance = async () => {
+    setData({
+      ...data,
+      contractBalance: "",
+    });
     try {
       const web3 = new Web3(loginInstance);
       const contract = new web3.eth.Contract(contractABI, contractAddress);
@@ -238,40 +281,108 @@ function App() {
       // Send transaction to smart contract to update message
       const balance = await contract.methods.contractBalance().call();
       console.log(balance);
+      setData({
+        ...data,
+        contractBalance: (balance / Math.pow(10, 18)).toFixed(10),
+      });
     } catch (err) {
       console.log(err);
     }
   };
 
   const sendIntoContract = async () => {
+    setTextChange({ ...textChange, sendIntoContract: "Sending..." });
     try {
+      // getting the provider of logged in account
+      const privateKey = await web3auth.provider.request({
+        method: "eth_private_key",
+      });
+      const ethereumPrivateKeyProvider = new EthereumPrivateKeyProvider({
+        config: {
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x13881", // hex of 80001, polygon testnet
+            rpcTarget: "https://rpc-mumbai.maticvigil.com/",
+            displayName: "Polygon Mumbai Testnet",
+            blockExplorer: "https://mumbai.polygonscan.com/",
+            ticker: "MATIC",
+            tickerName: "Matic",
+          },
+        },
+      });
+
+      await ethereumPrivateKeyProvider.setupProvider(privateKey);
+      console.log(ethereumPrivateKeyProvider.provider);
+      const provider = new ethers.providers.Web3Provider(
+        ethereumPrivateKeyProvider.provider
+      );
+      const signer = provider.getSigner();
       const web3 = new Web3(loginInstance);
       console.log(web3);
-      const contract = new web3.eth.Contract(contractABI, contractAddress);
+      // const contract = new web3.eth.Contract(contractABI, contractAddress);
+      const contract = new ethers.Contract(
+        contractAddress,
+        contractABI,
+        signer
+      );
+      console.log(contract);
       const fromAddress = (await web3.eth.getAccounts())[0];
       console.log(fromAddress);
-      // const amount = ethers.utils.parseEther("0.00858");
-      const response = await contract.methods
-        .sendInContract(100000000)
-        .send(
-          {
-            from: fromAddress,
-          },
-          function (error, transactionHash) {
-            if (transactionHash) {
-              console.log(transactionHash);
-            } else {
-              console.log(error);
-            }
-          }
-        )
-        .on("receipt", async function (receipt) {
-          console.log(receipt);
-        })
-        .on("error", async function (error) {
-          console.log(error);
+      const amount = web3.utils.toWei(data.sendIntoContractAmount.toString());
+      console.log(amount);
+      // const amount = ethers.utils.parseUnits(
+      //   msg.sendIntoContractAmount,
+      //   "ether"
+      // );
+      // console.log(parseInt(amount));
+      // const response = await contract.methods
+      //   .sendInContract(1)
+      //   .send(
+      //     {
+      //       from: fromAddress,
+      //     },
+      //     function (error, transactionHash) {
+      //       if (transactionHash) {
+      //         console.log(transactionHash);
+      //       } else {
+      //         console.log(error);
+      //       }
+      //     }
+      //   )
+      //   .on("receipt", async function (receipt) {
+      //     console.log(receipt);
+      //   })
+      //   .on("error", async function (error) {
+      //     console.log(error);
+      //   });
+      // const send = await web3.eth.sendTransaction({
+      //   from: fromAddress,
+      //   to: "0x408402F30618a6985c56cF9608E04CEA12CddC37",
+      //   value: 1000000000000000,
+      // });
+      // console.log(send);
+
+      // const receipt = await contract.methods
+      //   .sendInContract(1000000000000000)
+      //   .send({
+      //     from: fromAddress,
+      //   });
+      // console.log(receipt);
+
+      const tx = await contract.sendInContract(parseInt(amount), {
+        value: parseInt(amount),
+      });
+      const print = await tx.wait();
+      console.log(print);
+      getContractBalance();
+      setTextChange({ ...textChange, sendIntoContract: "Sent" });
+      setTimeout(() => {
+        setTextChange({
+          ...textChange,
+          sendIntoContract: "Send Into Contract",
         });
-      console.log(response);
+        setData({ ...data, sendIntoContractAmount: "" });
+      }, 2000);
     } catch (err) {
       console.log(err);
     }
@@ -295,23 +406,49 @@ function App() {
           </button> */}
           <button className="logout" onClick={logout}>
             logout
+          </button>{" "}
+          {/* <button className="logout" onClick={sendFunds}>
+            send Funds
+          </button> */}
+          <button className="logout" onClick={setProvider}>
+            setProvider
           </button>
         </div>
         <div className="msg">
           <input
             type="text"
-            value={msg.inputMsg ? msg.inputMsg : ""}
-            onChange={(e) => setMsg({ ...msg, inputMsg: e.target.value })}
+            placeholder="Enter msg..."
+            value={data.inputMsg ? data.inputMsg : ""}
+            onChange={(e) => setData({ ...data, inputMsg: e.target.value })}
           />
-          <button onClick={() => updateMsg()}>{sendMsgText}</button>
+          <button onClick={() => updateMsg()}>{textChange.sendMsgText}</button>
         </div>
         <div className="msg">
           <button onClick={() => displayMsg()}>Get Msg</button>
-          {msg.responseMsg ? <p>{msg.responseMsg}</p> : <p>-</p>}
+          {data.responseMsg ? <p>{data.responseMsg}</p> : <p>-</p>}
         </div>
         <div className="msg">
           <button onClick={getContractBalance}>Get Contract Balance</button>
-          <button onClick={sendIntoContract}>sendIntoContract</button>
+          {data.contractBalance ? (
+            <span>{data.contractBalance}</span>
+          ) : (
+            <span>-</span>
+          )}
+        </div>
+        <div className="msg">
+          <input
+            type="text"
+            placeholder="Enter amount in MATIC..."
+            value={
+              data.sendIntoContractAmount ? data.sendIntoContractAmount : ""
+            }
+            onChange={(e) =>
+              setData({ ...data, sendIntoContractAmount: e.target.value })
+            }
+          />
+          <button onClick={sendIntoContract}>
+            {textChange.sendIntoContract}
+          </button>
         </div>
         <table className="user-info-table">
           <thead>
@@ -338,6 +475,8 @@ function App() {
                       className="profile"
                       src={userData.profileImage}
                       alt="profile"
+                      width={"100px"}
+                      height={"100px"}
                     />
                   </td>
                 </tr>
